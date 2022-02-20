@@ -1,6 +1,7 @@
 mod csv;
 mod json;
 mod mysql;
+mod oracle;
 mod postgresql;
 
 use anyhow::{Error, Result};
