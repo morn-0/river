@@ -1,12 +1,9 @@
 use anyhow::Result;
-use async_stream::stream;
-use log::{error, info};
+use async_stream::{stream, AsyncStream};
+use log::info;
 use oracle::Connection;
 use serde::{Deserialize, Serialize};
-use simdutf8::basic::from_utf8;
-use std::sync::Arc;
-use tokio::sync::Semaphore;
-use tokio_stream::{Stream, StreamExt};
+use std::{future::Future, vec};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Oracle {
@@ -30,12 +27,32 @@ impl Oracle {
 
         oracle
     }
+
+    pub async fn reader(&self) -> Result<AsyncStream<Vec<String>, impl Future<Output = ()>>> {
+        let stream = stream! {
+            yield vec![];
+        };
+        Ok(stream)
+    }
+}
+
+async fn get_columns_by_table(conn: &Connection, table: &str) -> Result<Vec<String>> {
+    let columns = conn.query_as::<String>(
+        "SELECT COLUMN_NAME FROM all_tab_columns WHERE TABLE_NAME = :1 ORDER BY COLUMN_ID",
+        &[&table],
+    )?;
+
+    let columns = columns.filter_map(|row| row.ok()).collect::<Vec<String>>();
+    Ok(columns)
 }
 
 #[tokio::test]
 async fn test() -> Result<()> {
-    let conn = Connection::connect("river", "TY5Hyz", "//10.0.2.2/XE")?;
+    let conn = Connection::connect("river", "TY5Hyz", "127.0.0.1/XE")?;
+    let columns = get_columns_by_table(&conn, "PERSON").await?;
+    println!("{:#?}", columns);
 
+    conn.execute("drop table person", &[])?;
     conn.execute(
         "create table person (id number(38), name varchar2(40))",
         &[],
