@@ -1,10 +1,13 @@
 mod elasticsearch;
 mod mysql;
+mod oracle;
 mod postgresql;
 
 use anyhow::{Error, Result};
 use serde_json::Value;
 use tokio_stream::Stream;
+
+use self::oracle::Oracle;
 use {self::elasticsearch::Elasticsearch, mysql::MySQL, postgresql::PostgreSQL};
 
 pub async fn write(
@@ -18,6 +21,8 @@ pub async fn write(
         return PostgreSQL::new(value).write(reader).await;
     } else if "elasticsearch".eq(key) {
         return Elasticsearch::new(value).write(reader).await;
+    } else if "oracle".eq(key) {
+        return Oracle::new(value).write(reader).await;
     }
 
     Err(Error::msg(format!("No support for `{}`", key)))

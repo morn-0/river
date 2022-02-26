@@ -1,10 +1,11 @@
 use anyhow::Result;
-use async_stream::{stream, AsyncStream};
 use log::info;
 use r2d2::PooledConnection;
-use r2d2_oracle::OracleConnectionManager;
+use r2d2_oracle::{oracle::sql_type::ToSql, OracleConnectionManager};
 use serde::{Deserialize, Serialize};
-use std::future::Future;
+use serde_json::Value;
+use std::pin::Pin;
+use tokio_stream::{Stream, StreamExt};
 use url::Url;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -22,15 +23,24 @@ fn default_batch() -> usize {
 }
 
 impl Oracle {
-    pub fn new(value: &serde_json::Value) -> Self {
+    pub fn new(value: &Value) -> Self {
         let oracle: Oracle = serde_json::from_value(value.clone()).unwrap();
+
+        match Url::parse(&oracle.url) {
+            Ok(url) => {
+                if !"oracle".eq(url.scheme()) {
+                    panic!("Wrong oracle connection address");
+                }
+            }
+            Err(e) => panic!("{:#?}", e),
+        }
 
         info!("{:?}", oracle);
 
         oracle
     }
 
-    pub async fn reader(&self) -> Result<AsyncStream<Vec<String>, impl Future<Output = ()>>> {
+    pub async fn write(&self, reader: Box<dyn Stream<Item = Vec<String>>>) -> Result<()> {
         let url = Url::parse(&self.url)?;
         let manager = if let Some(host) = url.host_str() {
             if let Some(password) = url.password() {
@@ -48,7 +58,6 @@ impl Oracle {
             .min_idle(Some(1))
             .max_size(15)
             .build(manager)?;
-        let batch = *&self.batch as u32;
 
         let columns = match &self.columns {
             Some(columns) => columns.clone(),
@@ -57,41 +66,53 @@ impl Oracle {
         let columns_len = columns.len();
 
         let sql = {
-            let mut sql = String::from("SELECT ");
+            let mut sql = format!("INSERT INTO \"{}\" VALUES (", self.table);
+
             for (index, column) in columns.iter().enumerate() {
-                sql.push('"');
+                sql.push(':');
                 sql.push_str(column);
-                sql.push('"');
-                if index < (columns_len - 1) {
+
+                if index < columns_len - 1 {
                     sql.push_str(", ");
                 }
             }
-            sql.push_str(" FROM \"");
-            sql.push_str(&self.table);
-            sql.push('"');
+
+            sql.push_str(")");
             sql
         };
         info!("sql : {}", sql);
 
-        let conn = pool.get()?;
+        let mut reader = unsafe { Pin::new_unchecked(reader) };
 
-        let stream = stream! {
-            if let Ok(mut stmt) = conn.statement(&sql).fetch_array_size(batch).build() {
-                if let Ok(rows) = stmt.query(&[]) {
-                    for row in rows {
-                        if let Ok(row) = row {
-                            yield row
-                                .sql_values()
-                                .iter()
-                                .filter_map(|value| value.get::<String>().ok())
-                                .collect::<Vec<String>>();
-                        }
+        'out: loop {
+            let mut conn = pool.get()?;
+            conn.set_autocommit(true);
+
+            let mut batch = conn.batch(&sql, self.batch).build()?;
+            let mut batch_size = 0;
+
+            loop {
+                if let Some(row) = reader.next().await {
+                    let row = row
+                        .iter()
+                        .map(|field| field as &dyn ToSql)
+                        .collect::<Vec<&dyn ToSql>>();
+                    if let Ok(()) = batch.append_row(&row) {
+                        batch_size = batch_size + 1;
                     }
+
+                    if batch_size == self.batch {
+                        batch.execute()?;
+                        break;
+                    }
+                } else {
+                    batch.execute()?;
+                    break 'out;
                 }
             }
-        };
+        }
 
-        Ok(stream)
+        Ok(())
     }
 }
 
