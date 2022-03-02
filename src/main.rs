@@ -26,7 +26,7 @@ static ALLOC: Jemalloc = Jemalloc;
 #[clap(
     version = "0.0.1",
     author = "morning",
-    about = "High Performance Data Transfer Tool."
+    about = "High Performance Data Migration Tools."
 )]
 struct Args {
     #[clap(required = true, value_name = "FILE", parse(from_os_str))]
