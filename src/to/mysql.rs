@@ -31,7 +31,7 @@ impl MySQL {
     }
 
     pub async fn write(&self, reader: Box<dyn Stream<Item = Vec<String>>>) -> Result<()> {
-        let pool = Pool::new(Opts::from_url(&self.url).unwrap());
+        let pool = Pool::new(Opts::from_url(&self.url)?);
 
         let columns = match &self.columns {
             Some(columns) => columns.clone(),
