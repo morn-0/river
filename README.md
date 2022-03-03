@@ -49,7 +49,7 @@ To：Elasticsearch，MySQL，Oracle，PostgreSQL
 ```toml
 [task1]
 thread = 2 # 任务协程运行时的调度线程数
-filter = "append-create_time.lua" # Lua 脚本: 追加一个当前时间字段
+filter = "append_time.lua" # Lua 脚本: 追加一个当前时间字段
 
 [task1.from.csv]
 path = [ "/xxx/xxx/test1.csv", "/xxx/xxx/test2.csv" ]
