@@ -49,7 +49,7 @@ To：Elasticsearch，MySQL，Oracle，PostgreSQL
 ```toml
 [task1]
 thread = 2 # 任务协程运行时的调度线程数
-filter = "type_conver.lua" # Lua 脚本
+filter = "append-create_time.lua" # Lua 脚本: 追加一个当前时间字段
 
 [task1.from.csv]
 path = [ "/xxx/xxx/test1.csv", "/xxx/xxx/test2.csv" ]
@@ -71,6 +71,19 @@ parallel = 10240 # 格式化，提取指定 key 行为并行度
 [task2.to.mysql]
 url = "mysql://test:test@127.0.0.1/test"
 table = "test"
+```
+
+`append_time.lua`
+
+```lua
+// 获取行数据
+local row = ...
+
+// 追加一个当前时间字段
+row[#row + 1] = os.date("%Y-%m-%d %H:%M:%S", os.time())
+
+// 返回处理后的当前行，若返回空数组则丢弃当前行
+return row
 ```
 
 多个任务会多线程同时执行。
