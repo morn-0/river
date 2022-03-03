@@ -85,4 +85,4 @@ table = "test"
 # LOG=info river config.toml
 ```
 
-#### [查看完整配置]()
+#### [查看完整配置](https://github.com/cc-morning/river/wiki/configuration)
