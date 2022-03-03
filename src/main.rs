@@ -7,7 +7,7 @@ use clap::Parser;
 use env_logger::{Builder, Env};
 use filter::Filter;
 #[cfg(target_os = "unix")]
-use jemallocator::Jemalloc;
+use mimalloc::MiMalloc;
 use serde_json::Value;
 #[cfg(target_os = "windows")]
 use snmalloc_rs::SnMalloc;
@@ -20,7 +20,7 @@ static ALLOC: SnMalloc = SnMalloc;
 
 #[cfg(target_os = "unix")]
 #[global_allocator]
-static ALLOC: Jemalloc = Jemalloc;
+static ALLOC: MiMalloc = MiMalloc;
 
 #[derive(Parser, Debug)]
 #[clap(
