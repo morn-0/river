@@ -31,6 +31,8 @@ static ALLOC: MiMalloc = MiMalloc;
 struct Args {
     #[clap(required = true, value_name = "FILE", parse(from_os_str))]
     config: PathBuf,
+    #[clap(long, short)]
+    sync: bool,
 }
 
 fn main() -> Result<()> {
@@ -117,11 +119,17 @@ fn main() -> Result<()> {
             });
         });
 
-        joins.push(join);
+        if args.sync {
+            let _ = join.join();
+        } else {
+            joins.push(join);
+        }
     }
 
-    for join in joins {
-        let _ = join.join();
+    if !args.sync {
+        for join in joins {
+            let _ = join.join();
+        }
     }
 
     Ok(())
