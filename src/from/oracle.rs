@@ -1,10 +1,10 @@
 use anyhow::Result;
-use async_stream::{stream, AsyncStream};
+use async_stream::stream;
+use futures::Stream;
 use log::info;
 use r2d2::PooledConnection;
 use r2d2_oracle::OracleConnectionManager;
 use serde::{Deserialize, Serialize};
-use std::future::Future;
 use url::Url;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -30,7 +30,7 @@ impl Oracle {
         oracle
     }
 
-    pub async fn reader(&self) -> Result<AsyncStream<Vec<String>, impl Future<Output = ()>>> {
+    pub async fn reader(&self) -> Result<impl Stream<Item = Vec<String>>> {
         let url = Url::parse(&self.url)?;
         let manager = if let Some(host) = url.host_str() {
             if let Some(password) = url.password() {

@@ -1,8 +1,8 @@
-mod csv;
-mod json;
-mod mysql;
-mod oracle;
-mod postgresql;
+pub(crate) mod csv;
+pub(crate) mod json;
+pub(crate) mod mysql;
+pub(crate) mod oracle;
+pub(crate) mod postgresql;
 
 use anyhow::{Error, Result};
 use serde_json::Value;
