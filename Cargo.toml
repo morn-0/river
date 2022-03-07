@@ -1,6 +1,6 @@
 [package]
 name = "river"
-version = "0.1.0"
+version = "0.0.2"
 authors = ["morning"]
 edition = "2021"
 description = "High Performance Data Transfer Tool."
