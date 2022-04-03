@@ -1,4 +1,6 @@
 use anyhow::Result;
+use bytes::Bytes;
+use futures::SinkExt;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,6 +17,8 @@ pub struct PostgreSQL {
 
     #[serde(default)]
     fixnul: bool,
+    #[serde(default)]
+    fast_binary: bool,
 }
 
 impl PostgreSQL {
@@ -54,63 +58,119 @@ impl PostgreSQL {
                 }
             }
 
-            sql.push_str(") FROM STDIN BINARY");
+            sql.push_str(") FROM STDIN CSV DELIMITER ',' quote '\"' ESCAPE '\\'");
             sql
         };
         info!("sql : {}", sql);
 
-        let writer = {
-            let sink = client.copy_in(&sql).await?;
-            BinaryCopyInWriter::new(sink, &types)
-        };
+        let sink = client.copy_in(&sql).await?;
 
-        pin!(writer);
         let mut reader = unsafe { Pin::new_unchecked(reader) };
 
-        if self.fixnul {
-            let ac = aho_corasick::AhoCorasick::new(&["\u{0000}"]);
+        if self.fast_binary {
+            let writer = BinaryCopyInWriter::new(sink, &types);
+            pin!(writer);
 
-            while let Some(mut row) = reader.next().await {
-                if row.len() != columns_len {
-                    error!(
-                        "UnequalError({:#?}) : expected {} values but got {}",
-                        row,
-                        columns_len,
-                        row.len(),
-                    );
-                    continue;
+            if self.fixnul {
+                let ac = aho_corasick::AhoCorasick::new(&["\u{0000}"]);
+
+                while let Some(mut row) = reader.next().await {
+                    if row.len() != columns_len {
+                        error!(
+                            "UnequalError({:#?}) : expected {} values but got {}",
+                            row,
+                            columns_len,
+                            row.len(),
+                        );
+                        continue;
+                    }
+
+                    let row = row
+                        .iter_mut()
+                        .map(|x| ac.replace_all(x, &[""]))
+                        .collect::<Vec<String>>();
+
+                    if let Err(e) = writer.as_mut().write_raw(row).await {
+                        error!("{:#?}", e);
+                    }
                 }
+            } else {
+                while let Some(row) = reader.next().await {
+                    if row.len() != columns_len {
+                        error!(
+                            "UnequalError({:#?}) : expected {} values but got {}",
+                            row,
+                            columns_len,
+                            row.len(),
+                        );
+                        continue;
+                    }
 
-                let row = row
-                    .iter_mut()
-                    .map(|x| ac.replace_all(x, &[""]))
-                    .collect::<Vec<String>>();
-
-                if let Err(e) = writer.as_mut().write_raw(row).await {
-                    error!("{:#?}", e);
+                    if let Err(e) = writer.as_mut().write_raw(row).await {
+                        error!("{:#?}", e);
+                    }
                 }
             }
+
+            if let Err(e) = writer.finish().await {
+                error!("{:#?}", e);
+            };
         } else {
-            while let Some(row) = reader.next().await {
-                if row.len() != columns_len {
-                    error!(
-                        "UnequalError({:#?}) : expected {} values but got {}",
-                        row,
-                        columns_len,
-                        row.len(),
-                    );
-                    continue;
-                }
+            pin!(sink);
 
-                if let Err(e) = writer.as_mut().write_raw(row).await {
-                    error!("{:#?}", e);
+            if self.fixnul {
+                let ac = aho_corasick::AhoCorasick::new(&["\u{0000}"]);
+
+                while let Some(mut row) = reader.next().await {
+                    if row.len() != columns_len {
+                        error!(
+                            "UnequalError({:#?}) : expected {} values but got {}",
+                            row,
+                            columns_len,
+                            row.len(),
+                        );
+                        continue;
+                    }
+
+                    let row_str = row
+                        .iter_mut()
+                        .map(|x| ac.replace_all(x, &[""]))
+                        .map(|field| format!("\"{}\"", field))
+                        .collect::<Vec<String>>()
+                        .join(",");
+
+                    if let Err(e) = sink.send(Bytes::from(row_str)).await {
+                        error!("{:#?}", e);
+                    }
+                }
+            } else {
+                while let Some(row) = reader.next().await {
+                    if row.len() != columns_len {
+                        error!(
+                            "UnequalError({:#?}) : expected {} values but got {}",
+                            row,
+                            columns_len,
+                            row.len(),
+                        );
+                        continue;
+                    }
+
+                    let row_str = row
+                        .iter()
+                        .map(|field| format!("\"{}\"", field))
+                        .collect::<Vec<String>>()
+                        .join(",");
+
+                    if let Err(e) = sink.send(Bytes::from(row_str)).await {
+                        error!("{:#?}", e);
+                    }
                 }
             }
-        }
 
-        if let Err(e) = writer.finish().await {
-            error!("{:#?}", e);
-        };
+            if let Err(e) = sink.finish().await {
+                error!("{:#?}", e);
+            };
+        }
 
         Ok(())
     }

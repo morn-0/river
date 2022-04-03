@@ -62,10 +62,11 @@ double_quote = true # 引号转义
 url = "postgresql://test:test@127.0.0.1/test"
 table = "test"
 fixnul = true # 修复 0x00
+fast_binary = true # 使用 binary 传输数据速度最快，但是仅支持字符串类型
 
 [task2.from.json]
 path = [ "/xxx/xxx/test1.json", "/xxx/xxx/test2.json" ]
-columns = "id,name,sex,age"
+columns = [ "id", "name", "sex", "age" ]
 parallel = 10240 # 格式化，提取指定 key 行为并行度
 
 [task2.to.mysql]
