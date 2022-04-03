@@ -58,7 +58,14 @@ impl PostgreSQL {
                 }
             }
 
-            sql.push_str(") FROM STDIN CSV DELIMITER ',' quote '\"' ESCAPE '\\'");
+            sql.push_str(") FROM STDIN");
+
+            if self.fast_binary {
+                sql.push_str(" BINARY");
+            } else {
+                sql.push_str(" CSV DELIMITER ',' quote '\"' ESCAPE '\\'");
+            }
+
             sql
         };
         info!("sql : {}", sql);
