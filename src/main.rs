@@ -6,7 +6,7 @@ use anyhow::Result;
 use clap::Parser;
 use env_logger::{Builder, Env};
 use filter::Filter;
-#[cfg(target_os = "unix")]
+#[cfg(any(target_os = "unix", target_os = "linux"))]
 use mimalloc::MiMalloc;
 use serde_json::Value;
 #[cfg(target_os = "windows")]
@@ -18,7 +18,7 @@ use tokio::runtime;
 #[global_allocator]
 static ALLOC: SnMalloc = SnMalloc;
 
-#[cfg(target_os = "unix")]
+#[cfg(any(target_os = "unix", target_os = "linux"))]
 #[global_allocator]
 static ALLOC: MiMalloc = MiMalloc;
 

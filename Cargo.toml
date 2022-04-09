@@ -39,7 +39,7 @@ walkdir = { version = "2", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 snmalloc-rs = { version = "0.2", features = [ "1mib", "native-cpu", "build_cc", "usecxx20", "win8compat" ], default-features = false }
-[target.'cfg(unix)'.dependencies]
+[target.'cfg(any(target_os = "unix", target_os = "linux"))'.dependencies]
 mimalloc = { version = "0.1", default-features = false }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
