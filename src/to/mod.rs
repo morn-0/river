@@ -20,19 +20,8 @@ pub async fn write(
         return Elasticsearch::new(value).write(reader).await;
     } else if "oracle".eq(key) {
         return Oracle::new(value).write(reader).await;
-    }
-
-    Err(Error::msg(format!("No support for `{}`", key)))
-}
-
-pub async fn write_bytes(
-    from_key: &String,
-    from_value: &Value,
-    key: &String,
-    value: &Value,
-) -> Result<()> {
-    if "mysql".eq(key) {
-        return MySQL::new(value).write(from_key, from_value).await;
+    } else if "mysql".eq(key) {
+        return MySQL::new(value).write(reader).await;
     }
 
     Err(Error::msg(format!("No support for `{}`", key)))

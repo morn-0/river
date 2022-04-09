@@ -97,30 +97,24 @@ fn main() -> Result<()> {
                 let from = froms.iter().next().unwrap();
                 let to = tos.iter().next().unwrap();
 
-                if "mysql".eq(to.0) {
-                    if let Err(err) = crate::to::write_bytes(from.0, from.1, to.0, to.1).await {
-                        panic!("{:#?}", err);
+                let from = {
+                    from::get(from.0, from.1)
+                        .await
+                        .expect(&format!("Failed to get `{}`", from.0))
+                };
+                let from = if let Some(filter) = filter {
+                    if !PathBuf::from(filter).exists() {
+                        panic!("`{}`.`filter` does not exist", task.0);
                     }
+
+                    let filter = Filter::new(filter);
+                    filter.filter(from).expect("Failed to create filter")
                 } else {
-                    let from = {
-                        from::get(from.0, from.1)
-                            .await
-                            .expect(&format!("Failed to get `{}`", from.0))
-                    };
-                    let from = if let Some(filter) = filter {
-                        if !PathBuf::from(filter).exists() {
-                            panic!("`{}`.`filter` does not exist", task.0);
-                        }
+                    from
+                };
 
-                        let filter = Filter::new(filter);
-                        filter.filter(from).expect("Failed to create filter")
-                    } else {
-                        from
-                    };
-
-                    if let Err(err) = to::write(to.0, to.1, from).await {
-                        panic!("{:#?}", err);
-                    }
+                if let Err(err) = to::write(to.0, to.1, from).await {
+                    panic!("{:#?}", err);
                 }
             });
         });
