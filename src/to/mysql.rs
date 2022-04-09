@@ -61,7 +61,11 @@ impl MySQL {
         });
 
         while let Some(row) = reader.next().await {
-            let mut row_str = row.join(",");
+            let mut row_str = row
+                .iter()
+                .map(|field| format!("\"{}\"", field))
+                .collect::<Vec<String>>()
+                .join(",");
             row_str.push_str("\r\n");
 
             sender.send(Bytes::from(row_str)).unwrap();
