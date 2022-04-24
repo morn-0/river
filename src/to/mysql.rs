@@ -1,11 +1,16 @@
 use anyhow::Result;
 use bytes::Bytes;
+use futures::StreamExt;
 use log::info;
-use mysql_async::{prelude::Queryable, Conn, Opts, Pool};
+use mysql_async::{
+    prelude::{Query, Queryable},
+    Conn, Opts, Pool,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::pin::Pin;
-use tokio_stream::{Stream, StreamExt};
+use tokio::sync::mpsc;
+use tokio_stream::{wrappers::UnboundedReceiverStream, Stream};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MySQL {
@@ -51,15 +56,18 @@ impl MySQL {
         };
         info!("sql : {:#?}", sql);
 
+        let (sender, recv) = mpsc::unbounded_channel();
+
         let mut conn = pool.get_conn().await?;
-        let mut reader = unsafe { Pin::new_unchecked(reader) };
+        conn.set_infile_handler(
+            async move { Ok(UnboundedReceiverStream::new(recv).map(Ok).boxed()) },
+        );
 
-        let (sender, recv) = tokio::sync::mpsc::unbounded_channel();
-
-        let recv_task = tokio::spawn(async move {
-            conn.load_data(sql, recv).await.unwrap();
+        let conn_task = tokio::spawn(async move {
+            let _ = sql.ignore(&mut conn).await;
         });
 
+        let mut reader = unsafe { Pin::new_unchecked(reader) };
         while let Some(row) = reader.next().await {
             let mut row_str = row
                 .iter()
@@ -68,17 +76,17 @@ impl MySQL {
                 .join(",");
             row_str.push_str("\r\n");
 
-            sender.send(Bytes::from(row_str)).unwrap();
+            sender.send(Bytes::from(row_str))?;
         }
 
         drop(sender);
-        recv_task.await?;
+        conn_task.await?;
 
         Ok(())
     }
 }
 
 async fn get_columns_by_table(conn: &mut Conn, table: &str) -> Result<Vec<String>> {
-    let columns: Vec<String> = conn.query(format!("SELECT `COLUMN_NAME` FROM information_schema.`COLUMNS` WHERE `TABLE_NAME` = '{}' AND `TABLE_SCHEMA` = (SELECT DATABASE()) ORDER BY `ORDINAL_POSITION`", table)).await?;
+    let columns: Vec<String> = conn.query(format!("SELECT `COLUMN_NAME` FROM information_schema.`COLUMNS` WHERE `TABLE_NAME` = '{}' AND `TABLE_SCHEMA` = (SELECT DATABASE()) ORDER BY `ORDINAL_POSITION`", table)).await.unwrap();
     Ok(columns)
 }

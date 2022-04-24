@@ -22,7 +22,7 @@ flume = { version = "0.10", features = [ "async" ], default-features = false }
 futures = { version = "0.3", default-features = false }
 log = { version = "0.4", default-features = false }
 mlua = { version = "0.7", features = [ "luajit", "luajit52", "vendored", "async" ], default-features = false }
-mysql_async = { git = "https://github.com/cc-morning/mysql_async.git", features = [ "default" ], default-features = false }
+mysql_async = { git = "https://github.com/blackbeam/mysql_async.git", branch = "issue-188", features = [ "default" ], default-features = false }
 r2d2 = { version = "0.8", default-features = false }
 r2d2-oracle = { version = "0.5", features = [ "chrono" ], default-features = false }
 serde = { version = "1", features = [ "std", "derive" ], default-features = false }
