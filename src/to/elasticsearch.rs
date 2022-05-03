@@ -53,7 +53,7 @@ impl Elasticsearch {
         let batch = self.batch;
 
         let semaphore = Arc::new(Semaphore::new(self.parallel));
-        let (tx, rx) = flume::unbounded();
+        let (tx, rx) = crossbeam_channel::unbounded();
 
         let recv_task = tokio::spawn(async move {
             let client = match client(url).await {
@@ -62,7 +62,7 @@ impl Elasticsearch {
             };
             let mut ops = Vec::with_capacity(batch);
 
-            while let Ok((op, acquire)) = rx.recv_async().await {
+            while let Ok((op, acquire)) = rx.recv() {
                 ops.push(op);
                 if ops.len() == batch {
                     bulk(&client, index, r#type, ops).await;
@@ -99,7 +99,7 @@ impl Elasticsearch {
 
                 let op = BulkOperation::create(Value::Object(map)).into();
 
-                if let Err(e) = tx.send_async((op, acquire)).await {
+                if let Err(e) = tx.send((op, acquire)) {
                     error!("{:#?}", e);
                 }
             });

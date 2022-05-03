@@ -148,7 +148,7 @@ impl Csv {
         }
 
         let semaphore = Arc::new(Semaphore::new(self.parallel));
-        let (tx, rx) = flume::unbounded();
+        let (tx, rx) = crossbeam_channel::unbounded();
 
         let self_clone = self.clone();
         tokio::spawn(async move {
@@ -203,7 +203,7 @@ impl Csv {
                             });
 
                             if row.len() == bytes.len() {
-                                if let Err(e) = tx.send_async((row, acquire)).await {
+                                if let Err(e) = tx.send((row, acquire)) {
                                     error!("`{}` : {:#?} , {:#?}", path_str, e, position);
                                 }
                             } else {
@@ -220,7 +220,7 @@ impl Csv {
         });
 
         let stream = stream! {
-            while let Ok((row, acquire)) = rx.recv_async().await {
+            while let Ok((row, acquire)) = rx.recv() {
                 yield row;
 
                 drop(acquire);

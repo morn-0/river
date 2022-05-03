@@ -72,7 +72,7 @@ impl PostgreSQL {
         };
 
         let semaphore = Arc::new(Semaphore::new(self.parallel));
-        let (tx, rx) = flume::unbounded();
+        let (tx, rx) = crossbeam_channel::unbounded();
 
         let types = Arc::new(types);
         tokio::spawn(async move {
@@ -102,7 +102,7 @@ impl PostgreSQL {
                         .map(|(index, r#type)| to_string(index, &row, r#type))
                         .collect::<Vec<String>>();
 
-                    if let Err(e) = tx.send_async((row, acquire)).await {
+                    if let Err(e) = tx.send((row, acquire)) {
                         error!("{:#?}", e);
                     }
                 });
@@ -110,7 +110,7 @@ impl PostgreSQL {
         });
 
         let stream = stream! {
-            while let Ok((row, acquire)) = rx.recv_async().await {
+            while let Ok((row, acquire)) = rx.recv() {
                 yield row;
 
                 drop(acquire);
