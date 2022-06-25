@@ -1,9 +1,10 @@
+mod csv;
 mod elasticsearch;
 mod mysql;
 mod oracle;
 mod postgresql;
 
-use self::oracle::Oracle;
+use self::{csv::Csv, oracle::Oracle};
 use anyhow::{Error, Result};
 use serde_json::Value;
 use tokio_stream::Stream;
@@ -22,6 +23,8 @@ pub async fn write(
         return Oracle::new(value).write(reader).await;
     } else if "mysql".eq(key) {
         return MySQL::new(value).write(reader).await;
+    } else if "csv".eq(key) {
+        return Csv::new(value).write(reader).await;
     }
 
     Err(Error::msg(format!("No support for `{}`", key)))

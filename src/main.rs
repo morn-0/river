@@ -66,12 +66,11 @@ fn main() -> Result<()> {
                 },
                 None => 1,
             };
-            let runtime = runtime::Builder::new_multi_thread()
+            let runtime = match runtime::Builder::new_multi_thread()
                 .worker_threads(thread)
                 .enable_all()
-                .build();
-
-            let runtime = match runtime {
+                .build()
+            {
                 Ok(runtime) => runtime,
                 Err(err) => panic!("{:#?}", err),
             };
@@ -126,10 +125,8 @@ fn main() -> Result<()> {
         }
     }
 
-    if !args.sync {
-        for join in joins {
-            let _ = join.join();
-        }
+    for join in joins {
+        let _ = join.join();
     }
 
     Ok(())
