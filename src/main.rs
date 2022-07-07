@@ -24,7 +24,7 @@ static ALLOC: MiMalloc = MiMalloc;
 
 #[derive(Parser, Debug)]
 #[clap(
-    version = "0.0.4",
+    version = "0.0.5",
     author = "morning",
     about = "High Performance Data Migration Tools."
 )]
