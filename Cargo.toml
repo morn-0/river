@@ -21,6 +21,7 @@ env_logger = { version = "0.9", features = [ "humantime" ], default-features = f
 futures = { version = "0.3", default-features = false }
 log = { version = "0.4", default-features = false }
 mlua = { version = "0.8", features = [ "luajit", "luajit52", "vendored", "async", "send" ], default-features = false }
+mongodb = { version = "2", features = [ "tokio-runtime", "aws-auth", "bson-uuid-0_8", "bson-chrono-0_4", "bson-serde_with", "zlib-compression", "zstd-compression", "snappy-compression", "openssl-tls" ], default-features = false }
 mysql_async = { version = "0.30", features = [ "default" ], default-features = false }
 r2d2 = { version = "0.8", default-features = false }
 r2d2-oracle = { version = "0.5", features = [ "chrono" ], default-features = false }

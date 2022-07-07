@@ -43,9 +43,6 @@ pub struct Csv {
     has_headers: bool,
     #[serde(default)]
     double_quote: bool,
-
-    #[serde(default = "default_parallel")]
-    parallel: usize,
 }
 
 fn default_delimiter() -> Vec<u8> {
@@ -54,10 +51,6 @@ fn default_delimiter() -> Vec<u8> {
 
 fn default_quote() -> Vec<u8> {
     vec![b'"']
-}
-
-fn default_parallel() -> usize {
-    1
 }
 
 impl Csv {

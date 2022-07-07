@@ -1,5 +1,6 @@
 pub(crate) mod csv;
 pub(crate) mod json;
+pub(crate) mod mongodb;
 pub(crate) mod mysql;
 pub(crate) mod oracle;
 pub(crate) mod postgresql;
@@ -8,7 +9,7 @@ use anyhow::{Error, Result};
 use serde_json::Value;
 use tokio_stream::Stream;
 
-use self::oracle::Oracle;
+use self::{mongodb::MongoDB, oracle::Oracle};
 use {csv::Csv, json::Json, mysql::MySQL, postgresql::PostgreSQL};
 
 pub async fn get(key: &String, value: &Value) -> Result<Box<dyn Stream<Item = Vec<String>>>> {
@@ -27,6 +28,9 @@ pub async fn get(key: &String, value: &Value) -> Result<Box<dyn Stream<Item = Ve
     } else if "oracle".eq(key) {
         let oracle = Oracle::new(value);
         return Ok(Box::new(oracle.reader().await?));
+    } else if "mongodb".eq(key) {
+        let mongodb = MongoDB::new(value);
+        return Ok(Box::new(mongodb.reader().await?));
     }
 
     Err(Error::msg(format!("No support for `{}`", key)))
