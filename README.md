@@ -38,9 +38,9 @@ cargo build --release
 
 
 #### 支持的类型
-From：CSV，JSON，MySQL，Oracle，PostgreSQL
+From：CSV，JSON，MySQL，Oracle，PostgreSQL，MongoDB
 
-To：Elasticsearch，MySQL，Oracle，PostgreSQL
+To：Elasticsearch，MySQL，Oracle，PostgreSQL，CSV
 
 
 #### 示例
