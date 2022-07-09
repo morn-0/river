@@ -10,7 +10,8 @@ use tokio_stream::{Stream, StreamExt};
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MongoDB {
     url: String,
-    collection: String,
+    coll: String,
+    columns: Option<Vec<String>>,
 
     #[serde(default = "default_parallel")]
     parallel: usize,
@@ -39,14 +40,27 @@ impl MongoDB {
         let client = mongodb::Client::with_uri_str(&self.url).await?;
         let coll = match client.default_database() {
             Some(db) => db,
-            None => panic!(""),
+            None => panic!("Connection address not specified database!"),
         }
-        .collection::<Document>(&self.collection);
+        .collection::<Document>(&self.coll);
+
+        let projection = match &self.columns {
+            Some(columns) => {
+                let mut doc = Document::new();
+                for column in columns {
+                    doc.insert(column, 1);
+                }
+                Some(doc)
+            }
+            None => None,
+        };
 
         let find_opt = FindOptions::builder()
             .batch_size(Some(self.batch as u32))
             .limit(None)
+            .projection(projection)
             .build();
+
         let mut cursor = coll.find(None, Some(find_opt)).await?;
 
         let semaphore = Arc::new(Semaphore::new(self.parallel));
@@ -68,7 +82,10 @@ impl MongoDB {
                             return;
                         }
                     };
-                    let row = row.values().map(|v| v.to_string()).collect::<Vec<String>>();
+                    let row = row
+                        .iter()
+                        .map(|(_k, v)| v.to_string())
+                        .collect::<Vec<String>>();
 
                     if let Err(e) = tx.send((row, acquire)) {
                         error!("{:#?}", e);
